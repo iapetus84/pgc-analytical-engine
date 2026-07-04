@@ -1,6 +1,6 @@
 -- Move data from the raw copy into the Bronze table with metadata.
 
-INSERT INTO `pgc-analytical-engine.rec_hstg_bronze.subscriptions`
+INSERT INTO `@gcp_project.@bronze_data_set.subscriptions`
 
 SELECT 
   *
