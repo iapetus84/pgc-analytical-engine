@@ -1,6 +1,6 @@
 -- Create H1/H2 visualization data: Disable position distribution
 
-CREATE OR REPLACE TABLE `pgc-analytical-engine.rec_hstg_gold.h1h2_disable_position_distribution` AS
+CREATE OR REPLACE TABLE `@gcp_project.@gold_data_set.h1h2_disable_position_distribution` AS
 
 WITH disable_timing AS (
   
@@ -12,10 +12,10 @@ WITH disable_timing AS (
       / DATE_DIFF(s.ended_at, s.started_at, DAY)
     , 4) AS disable_position                                                    -- Moment during the subscription when the disablement happened
   
-  FROM `pgc-analytical-engine.rec_hstg_silver.subscriptions`      s
-  JOIN `pgc-analytical-engine.rec_hstg_silver.auto_renew_periods` p ON s.subscription_id = p.subscription_id
-                                                                    AND p.toggle_sequence = 1
-                                                                    AND p.ar_valid_to < s.ended_at
+  FROM `@gcp_project.@silver_data_set.subscriptions`        s
+  JOIN `@gcp_project.@silver_data_set..auto_renew_periods`  p ON s.subscription_id = p.subscription_id
+                                                              AND p.toggle_sequence = 1
+                                                              AND p.ar_valid_to < s.ended_at
   
   WHERE s.period_months = 12                                                    -- selecting the 12-month only period so the finding is clear
     AND s.product_group != 'mail'                                               -- excluded: insufficient volume (94 disablers)
