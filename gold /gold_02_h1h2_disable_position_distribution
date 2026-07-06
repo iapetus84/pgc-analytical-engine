@@ -1,0 +1,48 @@
+-- Create H1/H2 visualization data: Disable position distribution
+
+CREATE OR REPLACE TABLE `pgc-analytical-engine.rec_hstg_gold.h1h2_disable_position_distribution` AS
+
+WITH disable_timing AS (
+  
+  SELECT
+    s.product_group,
+    s.period_months,
+    ROUND(
+      DATE_DIFF(p.ar_valid_to, s.started_at, DAY)
+      / DATE_DIFF(s.ended_at, s.started_at, DAY)
+    , 4) AS disable_position                                                    -- Moment during the subscription when the disablement happened
+  
+  FROM `pgc-analytical-engine.rec_hstg_silver.subscriptions`      s
+  JOIN `pgc-analytical-engine.rec_hstg_silver.auto_renew_periods` p ON s.subscription_id = p.subscription_id
+                                                                    AND p.toggle_sequence = 1
+                                                                    AND p.ar_valid_to < s.ended_at
+  
+  WHERE s.period_months = 12                                                    -- selecting the 12-month only period so the finding is clear
+    AND s.product_group != 'mail'                                               -- excluded: insufficient volume (94 disablers)
+),
+
+bucketed AS (
+  SELECT
+    product_group,
+    period_months,
+    disable_position,
+    ROUND(FLOOR(disable_position / 0.05) * 0.05, 2) AS position_bucket,         -- Dividing the subscription into buckets of same size and allowing quick visual comparison
+    CASE
+      WHEN disable_position < 0.05 THEN '1_immediate_optout'
+      WHEN disable_position > 0.85 THEN '3_late_disabler'
+      ELSE                              '2_mid_subscription'
+    END AS disable_segment                                                      -- Splitting disablers into "early", "mid" and "late" groups
+  FROM disable_timing
+)
+
+SELECT
+  product_group,
+  period_months,
+  position_bucket,
+  disable_segment,
+  COUNT(*)                                        AS disablers,
+  ROUND(COUNT(*) / SUM(COUNT(*)) OVER 
+    (PARTITION BY product_group), 4)              AS pct_of_product_disablers   -- percent of the disablers pertaining to the product group in the given period/bucket/segment
+FROM bucketed
+GROUP BY product_group, period_months, position_bucket, disable_segment
+ORDER BY product_group, position_bucket;
