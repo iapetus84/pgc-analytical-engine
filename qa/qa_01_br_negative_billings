@@ -1,0 +1,8 @@
+-- Identifies rows with negative billing values
+-- Expected result: 2 rows, excluded from Silver
+
+SELECT
+  subscription_id,
+  billings_eur_excl_vat
+FROM `@gcp_project.@bronze_data_set.subscriptions`
+WHERE SAFE_CAST(billings_eur_excl_vat AS NUMERIC) < 0;
