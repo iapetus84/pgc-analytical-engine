@@ -1,0 +1,61 @@
+-- Create H3 visualization data: Auto renewal rates by product
+
+CREATE OR REPLACE TABLE
+  `@gcp_project.@gold_data_set.h3_ar_rates_by_product` AS
+
+WITH base AS (
+  SELECT
+    s.product_group,
+    COUNT(*)                                             AS total_subscriptions,
+    COUNTIF(p.ar_valid_to = s.ended_at)                  AS always_on,                  -- users who consciously kept the auto-renew
+    COUNTIF(p.ar_valid_to < s.ended_at)                  AS disabled_mid,               -- users who disabled auto-renew before the end of subscription
+    COUNTIF(p.subscription_id IS NULL)                   AS never_touched               -- users who never touched the auto-renew toggle don't exist in auto_renew_periods
+  FROM `@gcp_project.@silver_data_set.subscriptions` s
+  LEFT JOIN `@gcp_project.@silver_data_set.auto_renew_periods` p
+         ON s.subscription_id = p.subscription_id
+        AND p.toggle_sequence = 1                                                       -- selecting only the first toggle action
+  GROUP BY s.product_group
+),
+
+rates AS (
+  SELECT
+    product_group,
+    total_subscriptions,
+    always_on,
+    disabled_mid,
+    never_touched,
+
+    
+    ROUND(always_on / total_subscriptions, 4)
+      AS ar_rate_snapshot,                                                              -- Definition A: snapshot rate (most conservative)
+
+    ROUND(always_on / NULLIF(always_on + disabled_mid, 0), 4)
+      AS ar_rate_engaged,                                                               -- Definition B: engagement-adjusted (conscious decisions only)
+
+    ROUND(
+      always_on / NULLIF(always_on + disabled_mid, 0)
+      - always_on / total_subscriptions
+    , 4) AS awareness_gap                                                               -- Gap: difference between engaged and snapshot rate
+
+  FROM base
+)
+
+-- Unpivot to long format for Power BI grouped bar chart: one row per product group per metric
+SELECT product_group, product_sort, total_subscriptions, always_on, disabled_mid,
+       never_touched, awareness_gap,
+       'Snapshot rate'          AS metric_label,
+       '1_snapshot'             AS metric_sort,
+       ar_rate_snapshot         AS ar_rate
+FROM rates
+
+  UNION ALL
+
+SELECT product_group, product_sort, total_subscriptions, always_on, disabled_mid,
+       never_touched, awareness_gap,
+       'Engagement-adjusted rate' AS metric_label,
+       '2_engaged'                AS metric_sort,
+       ar_rate_engaged            AS ar_rate
+FROM rates
+
+ORDER BY product_group, metric_sort
+;
