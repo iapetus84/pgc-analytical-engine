@@ -1,0 +1,10 @@
+-- Checks for rows where ar_valid_to falls after ended_at
+-- Logically impossible -- AR period cannot extend beyond subscription end
+-- Expected result: 0 rows
+
+SELECT COUNT(*) AS invalid_rows
+FROM `@gcp_project.@silver_data_set.auto_renew_periods` p
+JOIN `@gcp_project.@silver_data_set.subscriptions` s
+  ON s.subscription_id = p.subscription_id
+WHERE p.ar_valid_to > s.ended_at
+;
