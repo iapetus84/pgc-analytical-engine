@@ -10,11 +10,11 @@ SELECT
     SAFE_CAST(ar_valid_to AS DATE),
     SAFE_CAST(ar_valid_from AS DATE),
     DAY
-  )                                AS period_duration_days
+  )                                AS period_duration_days    -- analytical field for easy access to the subscription period
 , ROW_NUMBER() OVER (
     PARTITION BY subscription_id
     ORDER BY SAFE_CAST(ar_valid_from AS DATE)
-  )                                AS toggle_sequence
+  )                                AS toggle_sequence         -- analytical field for ordering the on/off toggle activities of the client
 
 FROM `@gcp_project.@bronze_data_set.subscriptions`
 
