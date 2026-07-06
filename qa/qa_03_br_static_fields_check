@@ -1,0 +1,19 @@
+-- Confirms that all non-AR fields are invariant within a subscription_id
+-- Expected result: distinct_static_combos = 1 for all rows
+
+SELECT
+  subscription_id,
+  COUNT(*) AS row_count,
+  COUNT(DISTINCT CONCAT(
+    IFNULL(product_group,''), '|',
+    IFNULL(payment_gateway,''), '|',
+    IFNULL(CAST(period_months AS STRING),''), '|',
+    IFNULL(CAST(started_at AS STRING),''), '|',
+    IFNULL(CAST(ended_at AS STRING),''), '|',
+    IFNULL(CAST(billings_eur_excl_vat AS STRING),'')
+  )) AS distinct_static_combos
+FROM `@gcp_project.@bronze_data_set.subscriptions`
+GROUP BY subscription_id
+HAVING row_count > 1
+ORDER BY distinct_static_combos DESC
+LIMIT 50;
