@@ -1,0 +1,24 @@
+-- Create table to support additional information about H8: hosting_mix_shift_validation
+
+CREATE OR REPLACE TABLE `@gcp_project.@gold_data_set.h8_hosting_mix_shift_validation` AS
+
+SELECT
+  acquisition_year,
+  period_months,
+  subscriptions,
+  ROUND(subscriptions / SUM(subscriptions) OVER
+    (PARTITION BY acquisition_year)
+  , 4)                                             AS pct_of_year         -- percent of the subscriptions pertaining to the period in the given year
+
+FROM (
+  SELECT
+    EXTRACT(YEAR FROM started_at)                  AS acquisition_year,   -- start date determing the analyzed cohort
+    period_months,
+    COUNT(*)                                       AS subscriptions       -- number of subscriptions 
+  FROM `@gcp_project.@silver_data_set.subscriptions`
+  WHERE product_group = 'hosting'                                         -- select only hosting group
+  GROUP BY acquisition_year, period_months
+)
+
+ORDER BY acquisition_year, period_months
+;
