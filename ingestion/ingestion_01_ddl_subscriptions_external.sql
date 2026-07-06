@@ -17,6 +17,6 @@ CREATE OR REPLACE EXTERNAL TABLE `@gcp_project.@ingestion_data_set.hstg_DataAnal
 )
 OPTIONS (
   format = 'CSV',
-  uris = ['gs://@gcs_bucket/hostinger_recruitment_DataAnalystTaskdata_20260630.csv'],
+  uris = ['gs://@gcs_bucket/@csv_file_name'],
   skip_leading_rows = 1
 );
