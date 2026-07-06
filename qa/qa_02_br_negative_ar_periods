@@ -1,0 +1,12 @@
+-- Confirms is_auto_renew = TRUE is 1:1 with ar_valid_from being populated
+-- Expected result: all rows where is_auto_renew = TRUE have ar_valid_from
+-- Validates that is_auto_renew is redundant and safe to drop from Silver
+
+SELECT
+  is_auto_renew,
+  COUNT(*) AS cnt,
+  COUNTIF(ar_valid_from IS NOT NULL) AS has_ar_valid_from,
+  COUNTIF(ar_valid_from IS NULL)     AS missing_ar_valid_from
+FROM @gcp_project.@bronze_data_set.subscriptions
+GROUP BY is_auto_renew
+ORDER BY is_auto_renew;
