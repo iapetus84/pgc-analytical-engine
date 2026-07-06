@@ -10,8 +10,8 @@ WITH cohorts AS (
     COUNT(*)                                       AS total_subscriptions,
     COUNTIF(p.ar_valid_to = s.ended_at)            AS always_on,                  -- users who consciously kept the auto-renew
     COUNTIF(p.ar_valid_to < s.ended_at)            AS disabled_mid,               -- users who disabled auto-renew before the end of subscription
-    COUNTIF(p.subscription_id IS NULL)             AS never_touched               -- users who never touched the auto-renew toggle: 
-                                                                                  -- the ones that don't exist in auto_renew_periods
+    COUNTIF(p.subscription_id IS NULL)             AS never_touched               -- users who never touched the auto-renew toggle don't exist in auto_renew_periods
+
   FROM `@gcp_project.@silver_data_set.subscriptions` s
   LEFT JOIN `pgc-analytical-engine.rec_hstg_silver.auto_renew_periods` p
          ON s.subscription_id = p.subscription_id
