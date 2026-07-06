@@ -1,0 +1,29 @@
+-- Create H1/H2 visualization data: Days before renewal
+
+CREATE OR REPLACE TABLE `@gcp_project.@gold_data_set.h1h2_days_before_renewal` AS
+
+WITH disable_timing AS (
+  SELECT
+    s.product_group,
+    s.period_months,
+    DATE_DIFF(s.ended_at, p.ar_valid_to, DAY) AS days_before_renewal                -- looking at the the moment of disablement before the end of subsctiption              
+  FROM `@gcp_project.@silver_data_set.subscriptions`          s
+  JOIN `@gcp_project.@silver_data_set.auto_renew_periods`     p
+    ON s.subscription_id = p.subscription_id                                        -- users who disabled auto-renew before the end of subscription
+   AND p.toggle_sequence = 1                                                        -- selecting only the first toggle action
+   AND p.ar_valid_to < s.ended_at                                                   -- selecting only the users who opted
+)
+
+SELECT
+  product_group,
+  period_months,
+  days_before_renewal,
+  COUNT(*)                                          AS disablers,
+  ROUND(COUNT(*) / SUM(COUNT(*)) OVER
+    (PARTITION BY product_group), 4)                AS pct_of_product_disablers     -- percent of the disablers pertaining to the product group in the given period/days bucket/product
+FROM disable_timing
+WHERE period_months = 12                                                            -- analyzing only clear patter visible in 12-month-subscriptions
+  AND days_before_renewal <= 30                                                     -- focusing on the last subscription month with the highest drop rate
+  AND product_group != 'mail'                                                       -- excluded due to insufficient volume (94 disablers)
+GROUP BY product_group, period_months, days_before_renewal
+ORDER BY product_group, days_before_renewal;
